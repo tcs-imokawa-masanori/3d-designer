@@ -2806,10 +2806,60 @@
         document.getElementById('mode-display').textContent = mode === 'lego' ? 'LEGO' : '3D Model';
     }
 
+    // ========== EMBEDDED BRICK DATA (for static/S3 hosting) ==========
+    const EMBEDDED_BRICKS = {
+        "1x1": {"width": 1, "depth": 1, "height": 1, "studs": 1, "name": "1\u00d71 Brick"},
+        "1x2": {"width": 1, "depth": 2, "height": 1, "studs": 2, "name": "1\u00d72 Brick"},
+        "1x3": {"width": 1, "depth": 3, "height": 1, "studs": 3, "name": "1\u00d73 Brick"},
+        "1x4": {"width": 1, "depth": 4, "height": 1, "studs": 4, "name": "1\u00d74 Brick"},
+        "1x6": {"width": 1, "depth": 6, "height": 1, "studs": 6, "name": "1\u00d76 Brick"},
+        "1x8": {"width": 1, "depth": 8, "height": 1, "studs": 8, "name": "1\u00d78 Brick"},
+        "2x2": {"width": 2, "depth": 2, "height": 1, "studs": 4, "name": "2\u00d72 Brick"},
+        "2x3": {"width": 2, "depth": 3, "height": 1, "studs": 6, "name": "2\u00d73 Brick"},
+        "2x4": {"width": 2, "depth": 4, "height": 1, "studs": 8, "name": "2\u00d74 Brick"},
+        "2x6": {"width": 2, "depth": 6, "height": 1, "studs": 12, "name": "2\u00d76 Brick"},
+        "2x8": {"width": 2, "depth": 8, "height": 1, "studs": 16, "name": "2\u00d78 Brick"},
+        "2x10": {"width": 2, "depth": 10, "height": 1, "studs": 20, "name": "2\u00d710 Brick"},
+        "1x1_flat": {"width": 1, "depth": 1, "height": 0.33, "studs": 1, "name": "1\u00d71 Plate"},
+        "1x2_flat": {"width": 1, "depth": 2, "height": 0.33, "studs": 2, "name": "1\u00d72 Plate"},
+        "2x2_flat": {"width": 2, "depth": 2, "height": 0.33, "studs": 4, "name": "2\u00d72 Plate"},
+        "2x4_flat": {"width": 2, "depth": 4, "height": 0.33, "studs": 8, "name": "2\u00d74 Plate"},
+        "1x1_round": {"width": 1, "depth": 1, "height": 1, "studs": 1, "name": "1\u00d71 Round Brick", "shape": "cylinder"},
+        "2x2_round": {"width": 2, "depth": 2, "height": 1, "studs": 1, "name": "2\u00d72 Round Brick", "shape": "cylinder"},
+        "1x2_slope": {"width": 1, "depth": 2, "height": 1, "studs": 1, "name": "1\u00d72 Slope", "shape": "slope"},
+        "2x2_slope": {"width": 2, "depth": 2, "height": 1, "studs": 2, "name": "2\u00d72 Slope", "shape": "slope"},
+        "2x4_slope": {"width": 2, "depth": 4, "height": 1, "studs": 4, "name": "2\u00d74 Slope", "shape": "slope"},
+        "1x1_cone": {"width": 1, "depth": 1, "height": 1, "studs": 0, "name": "1\u00d71 Cone", "shape": "cone"},
+        "2x2_dome": {"width": 2, "depth": 2, "height": 1, "studs": 0, "name": "2\u00d72 Dome", "shape": "dome"}
+    };
+
+    const EMBEDDED_COLORS = {
+        "red": "#CC0000", "blue": "#0055BF", "yellow": "#FFD500",
+        "green": "#237841", "black": "#1B2A34", "white": "#F4F4F4",
+        "orange": "#FF7E14", "purple": "#81007B", "dark_blue": "#143044",
+        "dark_green": "#184632", "brown": "#583927", "tan": "#DDC48E",
+        "light_gray": "#9BA19D", "dark_gray": "#6D6E5C", "pink": "#FC97AC",
+        "lime": "#BBE90B", "dark_red": "#720E0F", "dark_tan": "#958A73",
+        "sand_blue": "#5A7184", "sand_green": "#789082", "medium_blue": "#5A93DB",
+        "bright_light_orange": "#FFC700", "dark_orange": "#A95500",
+        "bright_green": "#10CB31", "lavender": "#B9A0D2", "coral": "#FF698F",
+        "medium_lavender": "#A06EB4", "dark_purple": "#3F1C5C",
+        "bright_light_yellow": "#FFF03A", "sky_blue": "#7DBFDD",
+        "aqua": "#B3D7D1", "medium_nougat": "#E3A05B"
+    };
+
     // ========== LOAD DATA ==========
     async function loadBricks() {
-        const res = await fetch('/api/bricks');
-        const data = await res.json();
+        let data;
+        try {
+            const res = await fetch('/api/bricks');
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            data = await res.json();
+            console.log('[INIT] Brick data loaded from API');
+        } catch(e) {
+            console.log('[INIT] API unavailable, using embedded brick data:', e.message);
+            data = { bricks: EMBEDDED_BRICKS, colors: EMBEDDED_COLORS };
+        }
         window.brickData = data.bricks;
         window.colorData = data.colors;
 
@@ -2871,52 +2921,64 @@
     }
 
     async function loadPresets() {
-        const res = await fetch('/api/presets');
-        const data = await res.json();
+        try {
+            const res = await fetch('/api/presets');
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
 
-        const list = document.getElementById('preset-list');
-        const entries = Object.entries(data.presets);
-        document.getElementById('preset-count').textContent = entries.length;
-        list.innerHTML = entries.map(([key, p]) => `
-            <div class="preset-item" style="display:flex;align-items:center;gap:8px;">
-                <div style="flex:1;cursor:pointer;" onclick="selectPresetForPlacement('${key}','${p.name.replace(/'/g,"\\'")}')">
-                    <div class="preset-name">${p.name}</div>
-                    <div class="preset-desc">${p.description} (${p.brick_count} bricks)</div>
+            const list = document.getElementById('preset-list');
+            const entries = Object.entries(data.presets);
+            document.getElementById('preset-count').textContent = entries.length;
+            list.innerHTML = entries.map(([key, p]) => `
+                <div class="preset-item" style="display:flex;align-items:center;gap:8px;">
+                    <div style="flex:1;cursor:pointer;" onclick="selectPresetForPlacement('${key}','${p.name.replace(/'/g,"\\'")}')">
+                        <div class="preset-name">${p.name}</div>
+                        <div class="preset-desc">${p.description} (${p.brick_count} bricks)</div>
+                    </div>
+                    <div style="display:flex;gap:4px;flex-shrink:0;">
+                        <button onclick="event.stopPropagation();selectPresetForPlacement('${key}','${p.name.replace(/'/g,"\\'")}')" title="Select & Place" style="background:#4ecca3;color:#000;border:none;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;font-weight:bold;">📍Place</button>
+                        <button onclick="event.stopPropagation();loadPreset('${key}')" title="Load (replaces scene)" style="background:#0f3460;color:#fff;border:none;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;">📂Load</button>
+                    </div>
                 </div>
-                <div style="display:flex;gap:4px;flex-shrink:0;">
-                    <button onclick="event.stopPropagation();selectPresetForPlacement('${key}','${p.name.replace(/'/g,"\\'")}')" title="Select & Place" style="background:#4ecca3;color:#000;border:none;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;font-weight:bold;">📍Place</button>
-                    <button onclick="event.stopPropagation();loadPreset('${key}')" title="Load (replaces scene)" style="background:#0f3460;color:#fff;border:none;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;">📂Load</button>
-                </div>
-            </div>
-        `).join('');
+            `).join('');
+        } catch(e) {
+            console.log('[INIT] Presets API unavailable:', e.message);
+            document.getElementById('preset-count').textContent = '0';
+        }
     }
 
     async function loadPreset(name) {
-        const res = await fetch(`/api/presets/${name}`);
-        const data = await res.json();
-        if (!data.design) return;
+        try {
+            const res = await fetch(`/api/presets/${name}`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            if (!data.design) return;
 
-        // Exit preset/minifig mode if active
-        if (state.placementMode === 'preset') switchToBrickModeFromPreset();
-        if (state.placementMode === 'minifig') switchToBrickMode();
+            // Exit preset/minifig mode if active
+            if (state.placementMode === 'preset') switchToBrickModeFromPreset();
+            if (state.placementMode === 'minifig') switchToBrickMode();
 
-        clearSceneSilent();
-        for (const brick of data.design.bricks) {
-            state.selectedBrick = brick.type;
-            state.selectedColor = window.colorData[brick.color] || '#CC0000';
-            state.selectedColorName = brick.color;
-            state.buildHeight = brick.z || 0;
-            state.rotation = brick.rotation || 0;
-            placeBrick(brick.x || 0, brick.y || 0);
+            clearSceneSilent();
+            for (const brick of data.design.bricks) {
+                state.selectedBrick = brick.type;
+                state.selectedColor = window.colorData[brick.color] || '#CC0000';
+                state.selectedColorName = brick.color;
+                state.buildHeight = brick.z || 0;
+                state.rotation = brick.rotation || 0;
+                placeBrick(brick.x || 0, brick.y || 0);
+            }
+            state.selectedBrick = '2x4';
+            state.selectedColor = '#CC0000';
+            state.selectedColorName = 'red';
+            state.buildHeight = 0;
+            state.rotation = 0;
+            createGhostBrick();
+            document.getElementById('design-name').value = data.design.name;
+            showToast(`Loaded: ${data.design.name}`, 'success');
+        } catch(e) {
+            console.error('Failed to load preset:', e);
+            showToast('Could not load preset — API unavailable', 'error');
         }
-        state.selectedBrick = '2x4';
-        state.selectedColor = '#CC0000';
-        state.selectedColorName = 'red';
-        state.buildHeight = 0;
-        state.rotation = 0;
-        createGhostBrick();
-        document.getElementById('design-name').value = data.design.name;
-        showToast(`Loaded: ${data.design.name}`, 'success');
     }
 
     // ========== PRESET STAMP PLACEMENT ==========
@@ -3100,27 +3162,33 @@
     }
 
     async function loadSavedDesign(id) {
-        const res = await fetch(`/api/designs/${id}`);
-        const data = await res.json();
-        if(!data.design) return;
+        try {
+            const res = await fetch(`/api/designs/${id}`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            if(!data.design) return;
 
-        clearSceneSilent();
-        for(const brick of data.design.bricks) {
-            state.selectedBrick = brick.type;
-            state.selectedColor = window.colorData[brick.color] || '#CC0000';
-            state.selectedColorName = brick.color;
-            state.buildHeight = brick.z || 0;
-            state.rotation = brick.rotation || 0;
-            placeBrick(brick.x || 0, brick.y || 0);
+            clearSceneSilent();
+            for(const brick of data.design.bricks) {
+                state.selectedBrick = brick.type;
+                state.selectedColor = window.colorData[brick.color] || '#CC0000';
+                state.selectedColorName = brick.color;
+                state.buildHeight = brick.z || 0;
+                state.rotation = brick.rotation || 0;
+                placeBrick(brick.x || 0, brick.y || 0);
+            }
+            state.selectedBrick = '2x4';
+            state.selectedColor = '#CC0000';
+            state.selectedColorName = 'red';
+            state.buildHeight = 0;
+            state.rotation = 0;
+            createGhostBrick();
+            document.getElementById('design-name').value = data.design.name;
+            showToast(`Loaded: ${data.design.name}`, 'success');
+        } catch(e) {
+            console.error('Failed to load design:', e);
+            showToast('Could not load design — API unavailable', 'error');
         }
-        state.selectedBrick = '2x4';
-        state.selectedColor = '#CC0000';
-        state.selectedColorName = 'red';
-        state.buildHeight = 0;
-        state.rotation = 0;
-        createGhostBrick();
-        document.getElementById('design-name').value = data.design.name;
-        showToast(`Loaded: ${data.design.name}`, 'success');
     }
 
     function clearSceneSilent() {
@@ -3167,14 +3235,20 @@
             rotation: b.rotation || 0,
         }));
 
-        const res = await fetch('/api/designs/save', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, bricks, mode: state.mode }),
-        });
-        const data = await res.json();
-        showToast(`Design saved: ${name}`, 'success');
-        loadSavedDesigns();
+        try {
+            const res = await fetch('/api/designs/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, bricks, mode: state.mode }),
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            showToast(`Design saved: ${name}`, 'success');
+            loadSavedDesigns();
+        } catch(e) {
+            console.error('Failed to save design:', e);
+            showToast('Could not save — API unavailable. Try exporting as JSON instead.', 'error');
+        }
     }
 
     async function exportSTL() {
@@ -3193,21 +3267,27 @@
         }));
 
         showToast('Exporting STL...');
-        const res = await fetch('/api/export/stl', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, bricks }),
-        });
-        const data = await res.json();
+        try {
+            const res = await fetch('/api/export/stl', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, bricks }),
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
 
-        if (data.download_url) {
-            const a = document.createElement('a');
-            a.href = data.download_url;
-            a.download = data.filename;
-            a.click();
-            showToast(`STL exported! ${data.vertices} vertices, ${data.faces} faces`, 'success');
-        } else {
-            showToast('Export failed: ' + (data.error || 'Unknown error'), 'error');
+            if (data.download_url) {
+                const a = document.createElement('a');
+                a.href = data.download_url;
+                a.download = data.filename;
+                a.click();
+                showToast(`STL exported! ${data.vertices} vertices, ${data.faces} faces`, 'success');
+            } else {
+                showToast('Export failed: ' + (data.error || 'Unknown error'), 'error');
+            }
+        } catch(e) {
+            console.error('STL export failed:', e);
+            showToast('STL export unavailable — API not connected', 'error');
         }
     }
 
@@ -3221,20 +3301,26 @@
             type: b.type, x: b.x, y: b.y, z: b.z, color: b.color,
         }));
         showToast('Exporting 3MF for Bambu Studio...');
-        const res = await fetch('/api/export/3mf', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, bricks }),
-        });
-        const data = await res.json();
-        if(data.download_url) {
-            const a = document.createElement('a');
-            a.href = data.download_url;
-            a.download = data.filename;
-            a.click();
-            showToast(`3MF exported! ${data.file_size_kb}KB — Open in Bambu Studio!`, 'success');
-        } else {
-            showToast('Export failed: ' + (data.error || 'Unknown error'), 'error');
+        try {
+            const res = await fetch('/api/export/3mf', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, bricks }),
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            if(data.download_url) {
+                const a = document.createElement('a');
+                a.href = data.download_url;
+                a.download = data.filename;
+                a.click();
+                showToast(`3MF exported! ${data.file_size_kb}KB — Open in Bambu Studio!`, 'success');
+            } else {
+                showToast('Export failed: ' + (data.error || 'Unknown error'), 'error');
+            }
+        } catch(e) {
+            console.error('3MF export failed:', e);
+            showToast('3MF export unavailable — API not connected', 'error');
         }
     }
 
@@ -3255,30 +3341,36 @@
             color: b.color,
         }));
 
-        const res = await fetch('/api/bambu/prepare', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ bricks }),
-        });
-        const data = await res.json();
-        const s = data.bambu_settings;
+        try {
+            const res = await fetch('/api/bambu/prepare', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bricks }),
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            const s = data.bambu_settings;
 
-        document.getElementById('bambu-info').innerHTML = `
-            <strong>📐 Dimensions:</strong> ${s.dimensions.width_mm} × ${s.dimensions.depth_mm} × ${s.dimensions.height_mm} mm<br>
-            <strong>🧱 Bricks:</strong> ${s.brick_count}<br>
-            <strong>⏱️ Est. Time:</strong> ${s.estimated_time}<br>
-            <strong>📦 Material:</strong> ${s.estimated_material}<br><br>
-            <strong>🖨️ Compatible Printers:</strong><br>
-            ${Object.entries(s.fits_on_bed).map(([k,v]) => `&nbsp;&nbsp;${v ? '✅' : '❌'} ${k}`).join('<br>')}<br><br>
-            <strong>⚙️ Settings:</strong><br>
-            &nbsp;&nbsp;Layer: ${s.recommended_settings.layer_height}<br>
-            &nbsp;&nbsp;Infill: ${s.recommended_settings.infill}<br>
-            &nbsp;&nbsp;Material: ${s.recommended_settings.material}<br>
-            &nbsp;&nbsp;Nozzle: ${s.recommended_settings.nozzle}<br>
-            &nbsp;&nbsp;Walls: ${s.recommended_settings.wall_loops} loops<br><br>
-            <strong>📋 Workflow:</strong><br>
-            ${s.workflow.map(w => `&nbsp;&nbsp;${w}`).join('<br>')}
-        `;
+            document.getElementById('bambu-info').innerHTML = `
+                <strong>📐 Dimensions:</strong> ${s.dimensions.width_mm} × ${s.dimensions.depth_mm} × ${s.dimensions.height_mm} mm<br>
+                <strong>🧱 Bricks:</strong> ${s.brick_count}<br>
+                <strong>⏱️ Est. Time:</strong> ${s.estimated_time}<br>
+                <strong>📦 Material:</strong> ${s.estimated_material}<br><br>
+                <strong>🖨️ Compatible Printers:</strong><br>
+                ${Object.entries(s.fits_on_bed).map(([k,v]) => `&nbsp;&nbsp;${v ? '✅' : '❌'} ${k}`).join('<br>')}<br><br>
+                <strong>⚙️ Settings:</strong><br>
+                &nbsp;&nbsp;Layer: ${s.recommended_settings.layer_height}<br>
+                &nbsp;&nbsp;Infill: ${s.recommended_settings.infill}<br>
+                &nbsp;&nbsp;Material: ${s.recommended_settings.material}<br>
+                &nbsp;&nbsp;Nozzle: ${s.recommended_settings.nozzle}<br>
+                &nbsp;&nbsp;Walls: ${s.recommended_settings.wall_loops} loops<br><br>
+                <strong>📋 Workflow:</strong><br>
+                ${s.workflow.map(w => `&nbsp;&nbsp;${w}`).join('<br>')}
+            `;
+        } catch(e) {
+            console.error('Bambu prepare failed:', e);
+            document.getElementById('bambu-info').innerHTML = '<span style="color:var(--warning)">Bambu panel unavailable — API not connected</span>';
+        }
     }
 
     // ========== TOAST ==========
@@ -3365,63 +3457,69 @@
             color: b.color, rotation: b.rotation || 0,
         }));
 
-        const res = await fetch('/api/instructions/generate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: document.getElementById('design-name').value, bricks }),
-        });
-        const data = await res.json();
-        const inst = data.instructions;
+        try {
+            const res = await fetch('/api/instructions/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: document.getElementById('design-name').value, bricks }),
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            const inst = data.instructions;
 
-        let html = `
-            <div class="modal-overlay" onclick="if(event.target===this)this.remove()">
-                <div class="modal">
-                    <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">✕</button>
-                    <h2>📖 Building Instructions: ${inst.name}</h2>
-                    <div style="display:flex;gap:16px;margin-bottom:16px;font-size:0.85em;">
-                        <div>🧱 <strong>${inst.total_bricks}</strong> bricks</div>
-                        <div>📋 <strong>${inst.total_steps}</strong> steps</div>
-                        <div>⏱️ <strong>${inst.estimated_build_time}</strong></div>
-                    </div>
+            let html = `
+                <div class="modal-overlay" onclick="if(event.target===this)this.remove()">
+                    <div class="modal">
+                        <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">✕</button>
+                        <h2>📖 Building Instructions: ${inst.name}</h2>
+                        <div style="display:flex;gap:16px;margin-bottom:16px;font-size:0.85em;">
+                            <div>🧱 <strong>${inst.total_bricks}</strong> bricks</div>
+                            <div>📋 <strong>${inst.total_steps}</strong> steps</div>
+                            <div>⏱️ <strong>${inst.estimated_build_time}</strong></div>
+                        </div>
 
-                    <div class="tab-bar">
-                        <button class="tab-btn active" onclick="showInstTab('steps',this)">📋 Steps</button>
-                        <button class="tab-btn" onclick="showInstTab('parts',this)">🧱 Parts List</button>
-                    </div>
+                        <div class="tab-bar">
+                            <button class="tab-btn active" onclick="showInstTab('steps',this)">📋 Steps</button>
+                            <button class="tab-btn" onclick="showInstTab('parts',this)">🧱 Parts List</button>
+                        </div>
 
-                    <div id="inst-steps">
-        `;
-
-        for (const step of inst.steps) {
-            html += `
-                <div class="instruction-step">
-                    <span class="step-num">${step.step}</span>
-                    <span class="step-desc"><strong>${step.description}</strong></span>
-                    <div class="step-bricks">
-                        ${step.bricks.map(b => `${b.name} (${b.color}) at ${b.position}`).join(' · ')}
-                    </div>
-                    <div style="font-size:0.7em;color:var(--text2);margin-top:4px;">
-                        Total so far: ${step.cumulative_count} bricks
-                    </div>
-                </div>
+                        <div id="inst-steps">
             `;
-        }
 
-        html += `</div><div id="inst-parts" style="display:none;">`;
-        for (const part of inst.parts_list) {
-            const hex = window.colorData?.[part.color] || '#888';
-            html += `
-                <div class="parts-item">
-                    <span class="parts-count">${part.count}×</span>
-                    <div class="layer-color" style="background:${hex}"></div>
-                    <span>${part.name}</span>
-                    <span style="color:var(--text2);font-size:0.85em;margin-left:auto;">${part.color}</span>
-                </div>
-            `;
-        }
-        html += `</div></div></div>`;
+            for (const step of inst.steps) {
+                html += `
+                    <div class="instruction-step">
+                        <span class="step-num">${step.step}</span>
+                        <span class="step-desc"><strong>${step.description}</strong></span>
+                        <div class="step-bricks">
+                            ${step.bricks.map(b => `${b.name} (${b.color}) at ${b.position}`).join(' · ')}
+                        </div>
+                        <div style="font-size:0.7em;color:var(--text2);margin-top:4px;">
+                            Total so far: ${step.cumulative_count} bricks
+                        </div>
+                    </div>
+                `;
+            }
 
-        document.body.insertAdjacentHTML('beforeend', html);
+            html += `</div><div id="inst-parts" style="display:none;">`;
+            for (const part of inst.parts_list) {
+                const hex = window.colorData?.[part.color] || '#888';
+                html += `
+                    <div class="parts-item">
+                        <span class="parts-count">${part.count}×</span>
+                        <div class="layer-color" style="background:${hex}"></div>
+                        <span>${part.name}</span>
+                        <span style="color:var(--text2);font-size:0.85em;margin-left:auto;">${part.color}</span>
+                    </div>
+                `;
+            }
+            html += `</div></div></div>`;
+
+            document.body.insertAdjacentHTML('beforeend', html);
+        } catch(e) {
+            console.error('Instructions generation failed:', e);
+            showToast('Instructions unavailable — API not connected', 'error');
+        }
     }
 
     function showInstTab(tab, btn) {
@@ -3442,69 +3540,75 @@
             type: b.type, x: b.x, y: b.y, z: b.z, color: b.color,
         }));
 
-        const res = await fetch('/api/tools/measure', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ bricks }),
-        });
-        const data = await res.json();
-        const m = data.measurements;
+        try {
+            const res = await fetch('/api/tools/measure', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bricks }),
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            const m = data.measurements;
 
-        const html = `
-            <div class="modal-overlay" onclick="if(event.target===this)this.remove()">
-                <div class="modal">
-                    <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">✕</button>
-                    <h2>📏 Design Measurements</h2>
+            const html = `
+                <div class="modal-overlay" onclick="if(event.target===this)this.remove()">
+                    <div class="modal">
+                        <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">✕</button>
+                        <h2>📏 Design Measurements</h2>
 
-                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;">
-                        <div style="background:var(--bg);padding:12px;border-radius:8px;text-align:center;">
-                            <div style="font-size:1.5em;font-weight:700;color:var(--accent);">${m.bounding_box.width_mm}</div>
-                            <div style="font-size:0.75em;color:var(--text2);">Width (mm)</div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;">
+                            <div style="background:var(--bg);padding:12px;border-radius:8px;text-align:center;">
+                                <div style="font-size:1.5em;font-weight:700;color:var(--accent);">${m.bounding_box.width_mm}</div>
+                                <div style="font-size:0.75em;color:var(--text2);">Width (mm)</div>
+                            </div>
+                            <div style="background:var(--bg);padding:12px;border-radius:8px;text-align:center;">
+                                <div style="font-size:1.5em;font-weight:700;color:var(--success);">${m.bounding_box.depth_mm}</div>
+                                <div style="font-size:0.75em;color:var(--text2);">Depth (mm)</div>
+                            </div>
+                            <div style="background:var(--bg);padding:12px;border-radius:8px;text-align:center;">
+                                <div style="font-size:1.5em;font-weight:700;color:var(--warning);">${m.bounding_box.height_mm}</div>
+                                <div style="font-size:0.75em;color:var(--text2);">Height (mm)</div>
+                            </div>
                         </div>
-                        <div style="background:var(--bg);padding:12px;border-radius:8px;text-align:center;">
-                            <div style="font-size:1.5em;font-weight:700;color:var(--success);">${m.bounding_box.depth_mm}</div>
-                            <div style="font-size:0.75em;color:var(--text2);">Depth (mm)</div>
+
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:0.85em;">
+                            <div>🧱 <strong>Total Bricks:</strong> ${m.brick_count}</div>
+                            <div>⚫ <strong>Total Studs:</strong> ${m.total_studs}</div>
+                            <div>🎨 <strong>Colors Used:</strong> ${m.unique_colors}</div>
+                            <div>📦 <strong>Brick Types:</strong> ${m.unique_types}</div>
+                            <div>⚖️ <strong>Est. Weight:</strong> ${m.estimated_weight_g}g</div>
+                            <div>💰 <strong>Est. Cost:</strong> $${m.estimated_cost_usd}</div>
+                            <div>📐 <strong>Imperial:</strong> ${m.bounding_box.width_inches}" × ${m.bounding_box.depth_inches}" × ${m.bounding_box.height_inches}"</div>
                         </div>
-                        <div style="background:var(--bg);padding:12px;border-radius:8px;text-align:center;">
-                            <div style="font-size:1.5em;font-weight:700;color:var(--warning);">${m.bounding_box.height_mm}</div>
-                            <div style="font-size:0.75em;color:var(--text2);">Height (mm)</div>
+
+                        <div style="margin-top:16px;">
+                            <div class="panel-title">🎨 Color Breakdown</div>
+                            ${Object.entries(m.color_breakdown).map(([color, count]) =>
+                                `<div class="parts-item">
+                                    <div class="layer-color" style="background:${window.colorData?.[color] || '#888'}"></div>
+                                    <span>${color}</span>
+                                    <span class="parts-count" style="margin-left:auto;">${count}</span>
+                                </div>`
+                            ).join('')}
                         </div>
-                    </div>
 
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:0.85em;">
-                        <div>🧱 <strong>Total Bricks:</strong> ${m.brick_count}</div>
-                        <div>⚫ <strong>Total Studs:</strong> ${m.total_studs}</div>
-                        <div>🎨 <strong>Colors Used:</strong> ${m.unique_colors}</div>
-                        <div>📦 <strong>Brick Types:</strong> ${m.unique_types}</div>
-                        <div>⚖️ <strong>Est. Weight:</strong> ${m.estimated_weight_g}g</div>
-                        <div>💰 <strong>Est. Cost:</strong> $${m.estimated_cost_usd}</div>
-                        <div>📐 <strong>Imperial:</strong> ${m.bounding_box.width_inches}" × ${m.bounding_box.depth_inches}" × ${m.bounding_box.height_inches}"</div>
-                    </div>
-
-                    <div style="margin-top:16px;">
-                        <div class="panel-title">🎨 Color Breakdown</div>
-                        ${Object.entries(m.color_breakdown).map(([color, count]) =>
-                            `<div class="parts-item">
-                                <div class="layer-color" style="background:${window.colorData?.[color] || '#888'}"></div>
-                                <span>${color}</span>
-                                <span class="parts-count" style="margin-left:auto;">${count}</span>
-                            </div>`
-                        ).join('')}
-                    </div>
-
-                    <div style="margin-top:16px;">
-                        <div class="panel-title">📦 Brick Type Breakdown</div>
-                        ${Object.entries(m.type_breakdown).map(([type, count]) =>
-                            `<div class="parts-item">
-                                <span>${window.brickData?.[type]?.name || type}</span>
-                                <span class="parts-count" style="margin-left:auto;">${count}</span>
-                            </div>`
-                        ).join('')}
+                        <div style="margin-top:16px;">
+                            <div class="panel-title">📦 Brick Type Breakdown</div>
+                            ${Object.entries(m.type_breakdown).map(([type, count]) =>
+                                `<div class="parts-item">
+                                    <span>${window.brickData?.[type]?.name || type}</span>
+                                    <span class="parts-count" style="margin-left:auto;">${count}</span>
+                                </div>`
+                            ).join('')}
+                        </div>
                     </div>
                 </div>
-            </div>
-        `;
-        document.body.insertAdjacentHTML('beforeend', html);
+            `;
+            document.body.insertAdjacentHTML('beforeend', html);
+        } catch(e) {
+            console.error('Measurements failed:', e);
+            showToast('Measurements unavailable — API not connected', 'error');
+        }
     }
 
     // ========== KEYBOARD SHORTCUTS HELP ==========
@@ -4371,27 +4475,32 @@
                 type: b.type, x: b.x, y: b.y, z: b.z, color: b.color,
             }));
 
-            const res = await fetch('/api/export/ams', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ bricks }),
-            });
-            const data = await res.json();
-            const ams = data.ams_config;
+            try {
+                const res = await fetch('/api/export/ams', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ bricks }),
+                });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                const ams = data.ams_config;
 
-            const amsHtml = `
-                <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px;">
-                    <strong style="color:var(--success);">🎨 AMS Color Config:</strong><br>
-                    ${ams.ams_slots.map(s => `
-                        <div style="display:flex;align-items:center;gap:6px;margin:4px 0;font-size:0.8em;">
-                            <span style="width:14px;height:14px;border-radius:3px;background:${s.hex};display:inline-block;border:1px solid #fff3;"></span>
-                            Slot ${s.slot}: <strong>${s.color}</strong> (${s.brick_count} bricks)
-                        </div>
-                    `).join('')}
-                    ${ams.needs_manual_swap ? `<div style="color:var(--warning);font-size:0.8em;margin-top:6px;">⚠️ ${ams.extra_colors.length} extra color(s) need manual swap</div>` : '<div style="color:var(--success);font-size:0.8em;margin-top:6px;">✅ All colors fit in AMS!</div>'}
-                </div>
-            `;
-            document.getElementById('bambu-info').insertAdjacentHTML('beforeend', amsHtml);
+                const amsHtml = `
+                    <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px;">
+                        <strong style="color:var(--success);">🎨 AMS Color Config:</strong><br>
+                        ${ams.ams_slots.map(s => `
+                            <div style="display:flex;align-items:center;gap:6px;margin:4px 0;font-size:0.8em;">
+                                <span style="width:14px;height:14px;border-radius:3px;background:${s.hex};display:inline-block;border:1px solid #fff3;"></span>
+                                Slot ${s.slot}: <strong>${s.color}</strong> (${s.brick_count} bricks)
+                            </div>
+                        `).join('')}
+                        ${ams.needs_manual_swap ? `<div style="color:var(--warning);font-size:0.8em;margin-top:6px;">⚠️ ${ams.extra_colors.length} extra color(s) need manual swap</div>` : '<div style="color:var(--success);font-size:0.8em;margin-top:6px;">✅ All colors fit in AMS!</div>'}
+                    </div>
+                `;
+                document.getElementById('bambu-info').insertAdjacentHTML('beforeend', amsHtml);
+            } catch(e) {
+                console.error('AMS config failed:', e);
+            }
         }
     };
 
@@ -4430,20 +4539,26 @@
         }));
         const name = document.getElementById('design-name').value || 'My Design';
 
-        const res = await fetch('/api/designs/share', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, bricks }),
-        });
-        const data = await res.json();
-        const shareUrl = window.location.origin + data.share_url;
-
-        // Copy to clipboard
         try {
-            await navigator.clipboard.writeText(shareUrl);
-            showToast(`📎 Share link copied! ID: ${data.share_id}`, 'success');
+            const res = await fetch('/api/designs/share', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, bricks }),
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            const shareUrl = window.location.origin + data.share_url;
+
+            // Copy to clipboard
+            try {
+                await navigator.clipboard.writeText(shareUrl);
+                showToast(`📎 Share link copied! ID: ${data.share_id}`, 'success');
+            } catch(e) {
+                showToast(`Share ID: ${data.share_id}`, 'success');
+            }
         } catch(e) {
-            showToast(`Share ID: ${data.share_id}`, 'success');
+            console.error('Share failed:', e);
+            showToast('Sharing unavailable — API not connected', 'error');
         }
     }
 
@@ -4587,52 +4702,58 @@
             type: b.type, x: b.x, y: b.y, z: b.z, color: b.color,
         }));
 
-        const res = await fetch('/api/tools/estimate-cost', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ bricks, currency: 'jpy' }),
-        });
-        const data = await res.json();
-        const c = data.cost_estimate;
+        try {
+            const res = await fetch('/api/tools/estimate-cost', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bricks, currency: 'jpy' }),
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            const c = data.cost_estimate;
 
-        const html = `
-            <div class="modal-overlay" onclick="if(event.target===this)this.remove()">
-                <div class="modal">
-                    <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">✕</button>
-                    <h2>💰 Cost Estimate (${c.brick_count} bricks)</h2>
+            const html = `
+                <div class="modal-overlay" onclick="if(event.target===this)this.remove()">
+                    <div class="modal">
+                        <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">✕</button>
+                        <h2>💰 Cost Estimate (${c.brick_count} bricks)</h2>
 
-                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;">
-                        <div style="background:var(--bg);padding:14px;border-radius:10px;text-align:center;border:1px solid var(--warning);">
-                            <div style="font-size:0.75em;color:var(--text2);">🧱 LEGO Official</div>
-                            <div style="font-size:1.4em;font-weight:700;color:var(--warning);">${c.lego_official.symbol}${c.lego_official.total.toLocaleString()}</div>
-                            <div style="font-size:0.7em;color:var(--text2);">Per brick: ${c.lego_official.symbol}${c.lego_official.per_brick_avg}</div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;">
+                            <div style="background:var(--bg);padding:14px;border-radius:10px;text-align:center;border:1px solid var(--warning);">
+                                <div style="font-size:0.75em;color:var(--text2);">🧱 LEGO Official</div>
+                                <div style="font-size:1.4em;font-weight:700;color:var(--warning);">${c.lego_official.symbol}${c.lego_official.total.toLocaleString()}</div>
+                                <div style="font-size:0.7em;color:var(--text2);">Per brick: ${c.lego_official.symbol}${c.lego_official.per_brick_avg}</div>
+                            </div>
+                            <div style="background:var(--bg);padding:14px;border-radius:10px;text-align:center;border:1px solid var(--accent);">
+                                <div style="font-size:0.75em;color:var(--text2);">🛒 BrickLink</div>
+                                <div style="font-size:1.4em;font-weight:700;color:var(--accent);">${c.lego_official.symbol}${c.bricklink_estimate.total.toLocaleString()}</div>
+                                <div style="font-size:0.7em;color:var(--text2);">${c.bricklink_estimate.note}</div>
+                            </div>
+                            <div style="background:var(--bg);padding:14px;border-radius:10px;text-align:center;border:1px solid var(--success);">
+                                <div style="font-size:0.75em;color:var(--text2);">🖨️ 3D Print</div>
+                                <div style="font-size:1.4em;font-weight:700;color:var(--success);">${c.lego_official.symbol}${c['3d_print_estimate'].total.toLocaleString()}</div>
+                                <div style="font-size:0.7em;color:var(--text2);">${c['3d_print_estimate'].filament_weight_g}g PLA</div>
+                            </div>
                         </div>
-                        <div style="background:var(--bg);padding:14px;border-radius:10px;text-align:center;border:1px solid var(--accent);">
-                            <div style="font-size:0.75em;color:var(--text2);">🛒 BrickLink</div>
-                            <div style="font-size:1.4em;font-weight:700;color:var(--accent);">${c.lego_official.symbol}${c.bricklink_estimate.total.toLocaleString()}</div>
-                            <div style="font-size:0.7em;color:var(--text2);">${c.bricklink_estimate.note}</div>
-                        </div>
-                        <div style="background:var(--bg);padding:14px;border-radius:10px;text-align:center;border:1px solid var(--success);">
-                            <div style="font-size:0.75em;color:var(--text2);">🖨️ 3D Print</div>
-                            <div style="font-size:1.4em;font-weight:700;color:var(--success);">${c.lego_official.symbol}${c['3d_print_estimate'].total.toLocaleString()}</div>
-                            <div style="font-size:0.7em;color:var(--text2);">${c['3d_print_estimate'].filament_weight_g}g PLA</div>
-                        </div>
-                    </div>
 
-                    <div style="background:linear-gradient(135deg,#0a2a1a,#1a2a1a);border:1px solid var(--success);border-radius:10px;padding:14px;text-align:center;">
-                        <div style="font-size:0.85em;color:var(--success);">
-                            🏆 Cheapest: <strong>${c.cheapest_option}</strong>
-                            ${c.savings_vs_lego > 0 ? `<br>Save ${c.lego_official.symbol}${c.savings_vs_lego.toLocaleString()} vs LEGO!` : ''}
+                        <div style="background:linear-gradient(135deg,#0a2a1a,#1a2a1a);border:1px solid var(--success);border-radius:10px;padding:14px;text-align:center;">
+                            <div style="font-size:0.85em;color:var(--success);">
+                                🏆 Cheapest: <strong>${c.cheapest_option}</strong>
+                                ${c.savings_vs_lego > 0 ? `<br>Save ${c.lego_official.symbol}${c.savings_vs_lego.toLocaleString()} vs LEGO!` : ''}
+                            </div>
                         </div>
-                    </div>
 
-                    <div style="margin-top:12px;font-size:0.75em;color:var(--text2);">
-                        <em>* Prices are estimates. LEGO prices from Pick-a-Brick. BrickLink is marketplace average. 3D print based on PLA at ~¥3,750/kg.</em>
+                        <div style="margin-top:12px;font-size:0.75em;color:var(--text2);">
+                            <em>* Prices are estimates. LEGO prices from Pick-a-Brick. BrickLink is marketplace average. 3D print based on PLA at ~¥3,750/kg.</em>
+                        </div>
                     </div>
                 </div>
-            </div>
-        `;
-        document.body.insertAdjacentHTML('beforeend', html);
+            `;
+            document.body.insertAdjacentHTML('beforeend', html);
+        } catch(e) {
+            console.error('Cost estimate failed:', e);
+            showToast('Cost estimate unavailable — API not connected', 'error');
+        }
     }
 
     // ========== LDRAW IMPORT ==========
@@ -4697,31 +4818,37 @@
         const content = document.getElementById('ldraw-input').value;
         if(!content.trim()) { showToast('Paste LDraw content first!', 'error'); return; }
 
-        const res = await fetch('/api/import/ldraw', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ content }),
-        });
-        const data = await res.json();
+        try {
+            const res = await fetch('/api/import/ldraw', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content }),
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
 
-        if(data.imported && data.imported.bricks.length > 0) {
-            clearSceneSilent();
-            for(const brick of data.imported.bricks) {
-                state.selectedBrick = brick.type;
-                state.selectedColor = window.colorData[brick.color] || '#CC0000';
-                state.selectedColorName = brick.color;
-                state.buildHeight = brick.z || 0;
-                _origPlaceBrick(brick.x || 0, brick.y || 0);
+            if(data.imported && data.imported.bricks.length > 0) {
+                clearSceneSilent();
+                for(const brick of data.imported.bricks) {
+                    state.selectedBrick = brick.type;
+                    state.selectedColor = window.colorData[brick.color] || '#CC0000';
+                    state.selectedColorName = brick.color;
+                    state.buildHeight = brick.z || 0;
+                    _origPlaceBrick(brick.x || 0, brick.y || 0);
+                }
+                state.selectedBrick = '2x4';
+                state.selectedColor = '#CC0000';
+                state.selectedColorName = 'red';
+                state.buildHeight = 0;
+                createGhostBrick();
+                document.querySelector('.modal-overlay').remove();
+                showToast(`Imported ${data.imported.brick_count} bricks from LDraw!`, 'success');
+            } else {
+                showToast('No bricks found in LDraw content', 'error');
             }
-            state.selectedBrick = '2x4';
-            state.selectedColor = '#CC0000';
-            state.selectedColorName = 'red';
-            state.buildHeight = 0;
-            createGhostBrick();
-            document.querySelector('.modal-overlay').remove();
-            showToast(`Imported ${data.imported.brick_count} bricks from LDraw!`, 'success');
-        } else {
-            showToast('No bricks found in LDraw content', 'error');
+        } catch(e) {
+            console.error('LDraw import failed:', e);
+            showToast('LDraw import unavailable — API not connected', 'error');
         }
     }
 
@@ -4767,17 +4894,24 @@
 
     // ========== 🖨️ PRINTER HUB ==========
     async function showPrinterHub() {
-        const [printerRes, matRes, refRes, buyRes] = await Promise.all([
-            fetch('/api/printers/list').then(r => r.json()),
-            fetch('/api/printers/materials').then(r => r.json()),
-            fetch('/api/printers/references').then(r => r.json()),
-            fetch('/api/printers/best-time-to-buy').then(r => r.json()),
-        ]);
+        let printers, materials, refs, buyTimes;
+        try {
+            const [printerRes, matRes, refRes, buyRes] = await Promise.all([
+                fetch('/api/printers/list').then(r => { if(!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }),
+                fetch('/api/printers/materials').then(r => { if(!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }),
+                fetch('/api/printers/references').then(r => { if(!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }),
+                fetch('/api/printers/best-time-to-buy').then(r => { if(!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }),
+            ]);
 
-        const printers = printerRes.printers || [];
-        const materials = matRes.materials || {};
-        const refs = refRes.references || {};
-        const buyTimes = buyRes.best_times || {};
+            printers = printerRes.printers || [];
+            materials = matRes.materials || {};
+            refs = refRes.references || {};
+            buyTimes = buyRes.best_times || {};
+        } catch(e) {
+            console.error('Printer hub failed:', e);
+            showToast('Printer hub unavailable — API not connected', 'error');
+            return;
+        }
 
         let html = `<div class="modal-overlay" onclick="if(event.target===this)this.remove()">
         <div class="modal" style="max-width:900px;max-height:85vh;overflow:auto;">
@@ -4839,8 +4973,16 @@
 
     // ========== 🤖 AI DESIGN ASSISTANT ==========
     async function showAIAssistant() {
-        const challengeRes = await fetch('/api/amazing/ai/random').then(r => r.json());
-        const challenge = challengeRes.challenge || {};
+        let challenge = {};
+        try {
+            const challengeRes = await fetch('/api/amazing/ai/random');
+            if (!challengeRes.ok) throw new Error(`HTTP ${challengeRes.status}`);
+            const challengeData = await challengeRes.json();
+            challenge = challengeData.challenge || {};
+        } catch(e) {
+            console.log('AI challenge API unavailable:', e.message);
+            challenge = { theme: '🎯', challenge: 'API unavailable', difficulty: 'N/A' };
+        }
 
         let html = `<div class="modal-overlay" onclick="if(event.target===this)this.remove()">
         <div class="modal" style="max-width:600px;">
@@ -4879,20 +5021,26 @@
         const difficulty = document.getElementById('ai-difficulty').value;
         if(!idea) { showToast('Enter an idea first!', 'warning'); return; }
 
-        const res = await fetch('/api/amazing/ai/suggest', {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ idea, difficulty })
-        });
-        const data = await res.json();
-        const suggestions = data.suggestions || [];
+        try {
+            const res = await fetch('/api/amazing/ai/suggest', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ idea, difficulty })
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            const suggestions = data.suggestions || [];
 
-        const container = document.getElementById('ai-suggestions');
-        container.innerHTML = `<div style="font-weight:700;margin-bottom:8px;">💡 Suggestions for "${idea}":</div>` +
-            suggestions.map(s => `<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;" onclick="loadAIPreset('${s.id}')">
-                <div style="font-weight:600;">${s.name} <span style="font-size:0.8em;color:var(--accent);">(${s.difficulty})</span></div>
-                <div style="font-size:0.82em;color:var(--text2);">${s.description}</div>
-                <div style="font-size:0.78em;color:var(--text2);">🧱 ~${s.bricks} bricks | Score: ${s.score}</div>
-            </div>`).join('');
+            const container = document.getElementById('ai-suggestions');
+            container.innerHTML = `<div style="font-weight:700;margin-bottom:8px;">💡 Suggestions for "${idea}":</div>` +
+                suggestions.map(s => `<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;" onclick="loadAIPreset('${s.id}')">
+                    <div style="font-weight:600;">${s.name} <span style="font-size:0.8em;color:var(--accent);">(${s.difficulty})</span></div>
+                    <div style="font-size:0.82em;color:var(--text2);">${s.description}</div>
+                    <div style="font-size:0.78em;color:var(--text2);">🧱 ~${s.bricks} bricks | Score: ${s.score}</div>
+                </div>`).join('');
+        } catch(e) {
+            console.error('AI suggest failed:', e);
+            showToast('AI suggestions unavailable — API not connected', 'error');
+        }
     }
 
     async function loadAIPreset(presetId) {
@@ -4929,36 +5077,42 @@
 
         if(bricksData.length === 0) { showToast('No bricks to animate!', 'warning'); return; }
 
-        const res = await fetch('/api/amazing/animation/generate', {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ bricks: bricksData, speed: 0.5, style: 'bottom_up' })
-        });
-        const data = await res.json();
-        const keyframes = data.animation?.keyframes || [];
+        try {
+            const res = await fetch('/api/amazing/animation/generate', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ bricks: bricksData, speed: 0.5, style: 'bottom_up' })
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            const keyframes = data.animation?.keyframes || [];
 
-        showToast(`🎬 Playing build animation (${keyframes.length} steps)...`, 'success');
+            showToast(`🎬 Playing build animation (${keyframes.length} steps)...`, 'success');
 
-        // Hide all bricks first
-        state.bricks.forEach(m => { m.visible = false; });
+            // Hide all bricks first
+            state.bricks.forEach(m => { m.visible = false; });
 
-        // Animate bricks appearing one by one
-        for(let i = 0; i < state.bricks.length && i < keyframes.length; i++) {
-            await new Promise(resolve => setTimeout(resolve, 400));
-            state.bricks[i].visible = true;
-            state.bricks[i].scale.set(0.01, 0.01, 0.01);
+            // Animate bricks appearing one by one
+            for(let i = 0; i < state.bricks.length && i < keyframes.length; i++) {
+                await new Promise(resolve => setTimeout(resolve, 400));
+                state.bricks[i].visible = true;
+                state.bricks[i].scale.set(0.01, 0.01, 0.01);
 
-            // Animate scale up with bounce
-            const brick = state.bricks[i];
-            let t = 0;
-            const animInterval = setInterval(() => {
-                t += 0.05;
-                if(t >= 1) { brick.scale.set(1,1,1); clearInterval(animInterval); return; }
-                const bounce = 1 + Math.sin(t * Math.PI) * 0.3 * (1 - t);
-                brick.scale.set(bounce, bounce, bounce);
-            }, 16);
+                // Animate scale up with bounce
+                const brick = state.bricks[i];
+                let t = 0;
+                const animInterval = setInterval(() => {
+                    t += 0.05;
+                    if(t >= 1) { brick.scale.set(1,1,1); clearInterval(animInterval); return; }
+                    const bounce = 1 + Math.sin(t * Math.PI) * 0.3 * (1 - t);
+                    brick.scale.set(bounce, bounce, bounce);
+                }, 16);
+            }
+
+            showToast('🎬 Animation complete!', 'success');
+        } catch(e) {
+            console.error('Build animation failed:', e);
+            showToast('Build animation unavailable — API not connected', 'error');
         }
-
-        showToast('🎬 Animation complete!', 'success');
     }
 
     // ========== 🏗️ STRUCTURAL CHECK ==========
@@ -4971,65 +5125,78 @@
 
         if(bricksData.length === 0) { showToast('No bricks to check!', 'warning'); return; }
 
-        const res = await fetch('/api/amazing/physics/check', {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ bricks: bricksData })
-        });
-        const data = await res.json();
-        const analysis = data.structural_analysis || {};
+        try {
+            const res = await fetch('/api/amazing/physics/check', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ bricks: bricksData })
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            const analysis = data.structural_analysis || {};
 
-        const gradeColors = { A: '#10b981', B: '#22c55e', C: '#f59e0b', D: '#ef4444', F: '#dc2626' };
+            const gradeColors = { A: '#10b981', B: '#22c55e', C: '#f59e0b', D: '#ef4444', F: '#dc2626' };
 
-        let html = `<div class="modal-overlay" onclick="if(event.target===this)this.remove()">
-        <div class="modal" style="max-width:500px;">
-            <h2>🏗️ Structural Analysis</h2>
-            <div style="text-align:center;margin:20px 0;">
-                <div style="font-size:4em;font-weight:900;color:${gradeColors[analysis.grade] || '#888'};">${analysis.grade || '?'}</div>
-                <div style="font-size:1.2em;color:var(--text2);">Score: ${analysis.score}/100</div>
-                <div style="font-size:0.9em;color:var(--text2);">Printability: ${analysis.printability}</div>
-            </div>
-            ${(analysis.issues || []).map(i => `<div style="background:#2a1a1a;border:1px solid var(--danger);border-radius:8px;padding:10px;margin-bottom:6px;">
-                <div style="font-weight:700;color:var(--danger);">⚠️ ${i.message}</div>
-                <div style="font-size:0.82em;color:var(--text2);">💡 Fix: ${i.fix}</div>
-            </div>`).join('')}
-            ${(analysis.warnings || []).map(w => `<div style="background:#2a2a1a;border:1px solid var(--warning);border-radius:8px;padding:10px;margin-bottom:6px;">
-                <div style="font-weight:600;color:var(--warning);">⚡ ${w.message}</div>
-                <div style="font-size:0.82em;color:var(--text2);">💡 Fix: ${w.fix}</div>
-            </div>`).join('')}
-            <div style="background:var(--bg3);border-radius:8px;padding:10px;margin-top:10px;font-size:0.85em;">
-                <div>🧱 Total Bricks: ${analysis.stats?.total_bricks || 0}</div>
-                <div>🏗️ Max Height: ${analysis.stats?.max_height || 0} layers</div>
-                <div>⚡ Floating: ${analysis.stats?.floating_bricks || 0}</div>
-                <div>📐 Overhangs: ${analysis.stats?.overhang_count || 0}</div>
-            </div>
-            <div style="text-align:right;margin-top:16px;"><button class="btn btn-primary" onclick="this.closest('.modal-overlay').remove()">Close</button></div>
-        </div></div>`;
-        document.body.insertAdjacentHTML('beforeend', html);
+            let html = `<div class="modal-overlay" onclick="if(event.target===this)this.remove()">
+            <div class="modal" style="max-width:500px;">
+                <h2>🏗️ Structural Analysis</h2>
+                <div style="text-align:center;margin:20px 0;">
+                    <div style="font-size:4em;font-weight:900;color:${gradeColors[analysis.grade] || '#888'};">${analysis.grade || '?'}</div>
+                    <div style="font-size:1.2em;color:var(--text2);">Score: ${analysis.score}/100</div>
+                    <div style="font-size:0.9em;color:var(--text2);">Printability: ${analysis.printability}</div>
+                </div>
+                ${(analysis.issues || []).map(i => `<div style="background:#2a1a1a;border:1px solid var(--danger);border-radius:8px;padding:10px;margin-bottom:6px;">
+                    <div style="font-weight:700;color:var(--danger);">⚠️ ${i.message}</div>
+                    <div style="font-size:0.82em;color:var(--text2);">💡 Fix: ${i.fix}</div>
+                </div>`).join('')}
+                ${(analysis.warnings || []).map(w => `<div style="background:#2a2a1a;border:1px solid var(--warning);border-radius:8px;padding:10px;margin-bottom:6px;">
+                    <div style="font-weight:600;color:var(--warning);">⚡ ${w.message}</div>
+                    <div style="font-size:0.82em;color:var(--text2);">💡 Fix: ${w.fix}</div>
+                </div>`).join('')}
+                <div style="background:var(--bg3);border-radius:8px;padding:10px;margin-top:10px;font-size:0.85em;">
+                    <div>🧱 Total Bricks: ${analysis.stats?.total_bricks || 0}</div>
+                    <div>🏗️ Max Height: ${analysis.stats?.max_height || 0} layers</div>
+                    <div>⚡ Floating: ${analysis.stats?.floating_bricks || 0}</div>
+                    <div>📐 Overhangs: ${analysis.stats?.overhang_count || 0}</div>
+                </div>
+                <div style="text-align:right;margin-top:16px;"><button class="btn btn-primary" onclick="this.closest('.modal-overlay').remove()">Close</button></div>
+            </div></div>`;
+            document.body.insertAdjacentHTML('beforeend', html);
+        } catch(e) {
+            console.error('Structural check failed:', e);
+            showToast('Structural check unavailable — API not connected', 'error');
+        }
     }
 
     // ========== 🌍 COMMUNITY DESIGNS ==========
     async function showCommunity() {
-        const res = await fetch('/api/amazing/community/popular').then(r => r.json());
-        const designs = res.designs || [];
+        try {
+            const communityRes = await fetch('/api/amazing/community/popular');
+            if (!communityRes.ok) throw new Error(`HTTP ${communityRes.status}`);
+            const res = await communityRes.json();
+            const designs = res.designs || [];
 
-        let html = `<div class="modal-overlay" onclick="if(event.target===this)this.remove()">
-        <div class="modal" style="max-width:700px;max-height:80vh;overflow:auto;">
-            <h2>🌍 Community Designs</h2>
-            <p style="color:var(--text2);margin-bottom:16px;">Popular LEGO-compatible designs from around the world</p>
-            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;">
-            ${designs.map(d => `<a href="${d.url}" target="_blank" style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px;text-decoration:none;color:var(--text);">
-                <div style="font-weight:700;font-size:1.05em;">${d.name}</div>
-                <div style="font-size:0.82em;color:var(--text2);">by ${d.author} • ${d.source}</div>
-                <div style="display:flex;gap:12px;margin-top:6px;font-size:0.82em;">
-                    <span>❤️ ${d.likes.toLocaleString()}</span>
-                    <span>📥 ${d.downloads.toLocaleString()}</span>
-                    <span style="color:var(--accent);">${d.difficulty}</span>
+            let html = `<div class="modal-overlay" onclick="if(event.target===this)this.remove()">
+            <div class="modal" style="max-width:700px;max-height:80vh;overflow:auto;">
+                <h2>🌍 Community Designs</h2>
+                <p style="color:var(--text2);margin-bottom:16px;">Popular LEGO-compatible designs from around the world</p>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;">
+                ${designs.map(d => `<a href="${d.url}" target="_blank" style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px;text-decoration:none;color:var(--text);">
+                    <div style="font-weight:700;font-size:1.05em;">${d.name}</div>
+                    <div style="font-size:0.82em;color:var(--text2);">by ${d.author} • ${d.source}</div>
+                    <div style="display:flex;gap:12px;margin-top:6px;font-size:0.82em;">
+                        <span>❤️ ${d.likes.toLocaleString()}</span>
+                        <span>📥 ${d.downloads.toLocaleString()}</span>
+                        <span style="color:var(--accent);">${d.difficulty}</span>
+                    </div>
+                </a>`).join('')}
                 </div>
-            </a>`).join('')}
-            </div>
-            <div style="text-align:right;margin-top:16px;"><button class="btn" onclick="this.closest('.modal-overlay').remove()">Close</button></div>
-        </div></div>`;
-        document.body.insertAdjacentHTML('beforeend', html);
+                <div style="text-align:right;margin-top:16px;"><button class="btn" onclick="this.closest('.modal-overlay').remove()">Close</button></div>
+            </div></div>`;
+            document.body.insertAdjacentHTML('beforeend', html);
+        } catch(e) {
+            console.error('Community designs failed:', e);
+            showToast('Community designs unavailable — API not connected', 'error');
+        }
     }
 
     // ========== 🏢 MULTI-FLOOR BUILDING GENERATOR ==========
@@ -5068,53 +5235,66 @@
         const style = document.getElementById('gen-style').value;
         const interior = document.getElementById('gen-interior').checked;
 
-        const res = await fetch('/api/amazing/building/floors', {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ floors, width, depth, style, include_interior: interior })
-        });
-        const data = await res.json();
-        const building = data.building || {};
+        try {
+            const res = await fetch('/api/amazing/building/floors', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ floors, width, depth, style, include_interior: interior })
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            const building = data.building || {};
 
-        if(building.bricks) {
-            clearSceneSilent();
-            for(const brick of building.bricks) {
-                state.selectedBrick = brick.type || '2x4';
-                state.selectedColor = window.colorData[brick.color] || '#CC0000';
-                state.selectedColorName = brick.color || 'red';
-                state.buildHeight = brick.z || 0;
-                _origPlaceBrick(brick.x || 0, brick.y || 0);
+            if(building.bricks) {
+                clearSceneSilent();
+                for(const brick of building.bricks) {
+                    state.selectedBrick = brick.type || '2x4';
+                    state.selectedColor = window.colorData[brick.color] || '#CC0000';
+                    state.selectedColorName = brick.color || 'red';
+                    state.buildHeight = brick.z || 0;
+                    _origPlaceBrick(brick.x || 0, brick.y || 0);
+                }
+                state.buildHeight = 0; createGhostBrick();
+                document.querySelector('.modal-overlay')?.remove();
+                showToast(`🏢 Generated ${floors}-floor ${style} building (${building.brick_count} bricks)!`, 'success');
             }
-            state.buildHeight = 0; createGhostBrick();
-            document.querySelector('.modal-overlay')?.remove();
-            showToast(`🏢 Generated ${floors}-floor ${style} building (${building.brick_count} bricks)!`, 'success');
+        } catch(e) {
+            console.error('Building generation failed:', e);
+            showToast('Building generator unavailable — API not connected', 'error');
         }
     }
 
     // ========== 🎭 DECALS & TEXTURES ==========
     async function showDecals() {
-        const res = await fetch('/api/amazing/decals').then(r => r.json());
-        const decals = res.decals || {};
-        const textures = res.textures || {};
+        try {
+            const decalRes = await fetch('/api/amazing/decals');
+            if (!decalRes.ok) throw new Error(`HTTP ${decalRes.status}`);
+            const res = await decalRes.json();
+            const decals = res.decals || {};
+            const textures = res.textures || {};
 
-        let html = `<div class="modal-overlay" onclick="if(event.target===this)this.remove()">
-        <div class="modal" style="max-width:600px;max-height:80vh;overflow:auto;">
-            <h2>🎭 Decals & Textures</h2>
-            <h3>🖼️ Decals</h3>
-            ${Object.entries(decals).map(([cat, items]) => `
-                <div style="margin-bottom:12px;">
-                <div style="font-weight:600;text-transform:capitalize;margin-bottom:6px;">${cat}</div>
+            let html = `<div class="modal-overlay" onclick="if(event.target===this)this.remove()">
+            <div class="modal" style="max-width:600px;max-height:80vh;overflow:auto;">
+                <h2>🎭 Decals & Textures</h2>
+                <h3>🖼️ Decals</h3>
+                ${Object.entries(decals).map(([cat, items]) => `
+                    <div style="margin-bottom:12px;">
+                    <div style="font-weight:600;text-transform:capitalize;margin-bottom:6px;">${cat}</div>
+                    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                    ${items.map(d => `<button class="btn btn-sm" onclick="applyDecal('${d.id}','${cat}')" title="${d.name}">${d.emoji || '📌'} ${d.name}</button>`).join('')}
+                    </div></div>`).join('')}
+
+                <h3 style="margin-top:16px;">✨ Textures</h3>
                 <div style="display:flex;flex-wrap:wrap;gap:6px;">
-                ${items.map(d => `<button class="btn btn-sm" onclick="applyDecal('${d.id}','${cat}')" title="${d.name}">${d.emoji || '📌'} ${d.name}</button>`).join('')}
-                </div></div>`).join('')}
+                ${Object.entries(textures).map(([k,t]) => `<button class="btn btn-sm" onclick="applyTexture('${k}')" title="${t.name}">${t.icon || '🎨'} ${t.name}</button>`).join('')}
+                </div>
 
-            <h3 style="margin-top:16px;">✨ Textures</h3>
-            <div style="display:flex;flex-wrap:wrap;gap:6px;">
-            ${Object.entries(textures).map(([k,t]) => `<button class="btn btn-sm" onclick="applyTexture('${k}')" title="${t.name}">${t.icon || '🎨'} ${t.name}</button>`).join('')}
-            </div>
-
-            <div style="text-align:right;margin-top:16px;"><button class="btn" onclick="this.closest('.modal-overlay').remove()">Close</button></div>
-        </div></div>`;
-        document.body.insertAdjacentHTML('beforeend', html);
+                <div style="text-align:right;margin-top:16px;"><button class="btn" onclick="this.closest('.modal-overlay').remove()">Close</button></div>
+            </div></div>`;
+            document.body.insertAdjacentHTML('beforeend', html);
+        } catch(e) {
+            console.error('Decals failed:', e);
+            showToast('Decals unavailable — API not connected', 'error');
+        }
     }
 
     function applyDecal(decalId, category) {
@@ -5137,56 +5317,62 @@
 
         const designName = document.getElementById('design-name')?.value || 'My Design';
 
-        const res = await fetch('/api/amazing/instructions/pdf-data', {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ bricks: bricksData, name: designName, author: 'Dr. Imokawa' })
-        });
-        const data = await res.json();
-        const booklet = data.instruction_booklet || {};
-        const pages = booklet.pages || [];
+        try {
+            const res = await fetch('/api/amazing/instructions/pdf-data', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ bricks: bricksData, name: designName, author: 'Dr. Imokawa' })
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            const booklet = data.instruction_booklet || {};
+            const pages = booklet.pages || [];
 
-        let html = `<div class="modal-overlay" onclick="if(event.target===this)this.remove()">
-        <div class="modal" style="max-width:700px;max-height:85vh;overflow:auto;">
-            <h2>📕 Building Instructions</h2>
-            <div style="text-align:center;margin-bottom:20px;">Like real LEGO instruction booklets!</div>`;
+            let html = `<div class="modal-overlay" onclick="if(event.target===this)this.remove()">
+            <div class="modal" style="max-width:700px;max-height:85vh;overflow:auto;">
+                <h2>📕 Building Instructions</h2>
+                <div style="text-align:center;margin-bottom:20px;">Like real LEGO instruction booklets!</div>`;
 
-        for(const page of pages) {
-            if(page.type === 'cover') {
-                html += `<div style="background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:12px;padding:30px;text-align:center;margin-bottom:16px;">
-                    <div style="font-size:2em;font-weight:900;color:white;">🧱 ${page.title}</div>
-                    <div style="color:rgba(255,255,255,0.8);margin:8px 0;">by ${page.author}</div>
-                    <div style="color:rgba(255,255,255,0.7);font-size:0.9em;">${page.brick_count} bricks • ${page.difficulty} • ~${page.estimated_time}</div>
-                </div>`;
-            } else if(page.type === 'parts_list') {
-                html += `<div style="background:var(--bg3);border-radius:10px;padding:16px;margin-bottom:12px;">
-                    <h3>📦 Parts List (${page.total_parts} pieces)</h3>
-                    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">
-                    ${(page.parts || []).map(p => `<span style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:0.82em;">${p.count}× ${p.type} (${p.color})</span>`).join('')}
-                    </div></div>`;
-            } else if(page.type === 'step') {
-                const pct = page.progress_percent || 0;
-                html += `<div style="background:var(--bg3);border-radius:10px;padding:12px;margin-bottom:8px;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;">
-                        <strong>Step ${page.step_number}</strong>
-                        <span style="font-size:0.82em;color:var(--text2);">${pct}%</span>
-                    </div>
-                    <div style="background:var(--bg);border-radius:4px;height:4px;margin:6px 0;">
-                        <div style="background:var(--accent);border-radius:4px;height:4px;width:${pct}%;"></div>
-                    </div>
-                    <div style="font-size:0.85em;">${page.instruction}</div>
-                    <div style="font-size:0.78em;color:var(--text2);">Add ${page.new_brick_count} brick(s) • Total so far: ${page.cumulative_count}</div>
-                </div>`;
-            } else if(page.type === 'completion') {
-                html += `<div style="background:linear-gradient(135deg,#1a2e1a,#1a3e1a);border:1px solid var(--success);border-radius:12px;padding:24px;text-align:center;margin-top:12px;">
-                    <div style="font-size:2em;">🎉</div>
-                    <div style="font-size:1.2em;font-weight:700;color:var(--success);">${page.message}</div>
-                </div>`;
+            for(const page of pages) {
+                if(page.type === 'cover') {
+                    html += `<div style="background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:12px;padding:30px;text-align:center;margin-bottom:16px;">
+                        <div style="font-size:2em;font-weight:900;color:white;">🧱 ${page.title}</div>
+                        <div style="color:rgba(255,255,255,0.8);margin:8px 0;">by ${page.author}</div>
+                        <div style="color:rgba(255,255,255,0.7);font-size:0.9em;">${page.brick_count} bricks • ${page.difficulty} • ~${page.estimated_time}</div>
+                    </div>`;
+                } else if(page.type === 'parts_list') {
+                    html += `<div style="background:var(--bg3);border-radius:10px;padding:16px;margin-bottom:12px;">
+                        <h3>📦 Parts List (${page.total_parts} pieces)</h3>
+                        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">
+                        ${(page.parts || []).map(p => `<span style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:0.82em;">${p.count}× ${p.type} (${p.color})</span>`).join('')}
+                        </div></div>`;
+                } else if(page.type === 'step') {
+                    const pct = page.progress_percent || 0;
+                    html += `<div style="background:var(--bg3);border-radius:10px;padding:12px;margin-bottom:8px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <strong>Step ${page.step_number}</strong>
+                            <span style="font-size:0.82em;color:var(--text2);">${pct}%</span>
+                        </div>
+                        <div style="background:var(--bg);border-radius:4px;height:4px;margin:6px 0;">
+                            <div style="background:var(--accent);border-radius:4px;height:4px;width:${pct}%;"></div>
+                        </div>
+                        <div style="font-size:0.85em;">${page.instruction}</div>
+                        <div style="font-size:0.78em;color:var(--text2);">Add ${page.new_brick_count} brick(s) • Total so far: ${page.cumulative_count}</div>
+                    </div>`;
+                } else if(page.type === 'completion') {
+                    html += `<div style="background:linear-gradient(135deg,#1a2e1a,#1a3e1a);border:1px solid var(--success);border-radius:12px;padding:24px;text-align:center;margin-top:12px;">
+                        <div style="font-size:2em;">🎉</div>
+                        <div style="font-size:1.2em;font-weight:700;color:var(--success);">${page.message}</div>
+                    </div>`;
+                }
             }
-        }
 
-        html += `<div style="text-align:right;margin-top:16px;"><button class="btn btn-primary" onclick="this.closest('.modal-overlay').remove()">Close</button></div>
-        </div></div>`;
-        document.body.insertAdjacentHTML('beforeend', html);
+            html += `<div style="text-align:right;margin-top:16px;"><button class="btn btn-primary" onclick="this.closest('.modal-overlay').remove()">Close</button></div>
+            </div></div>`;
+            document.body.insertAdjacentHTML('beforeend', html);
+        } catch(e) {
+            console.error('Instruction booklet failed:', e);
+            showToast('Instruction booklet unavailable — API not connected', 'error');
+        }
     }
 
     // ========== iPad TOUCH SUPPORT ==========
