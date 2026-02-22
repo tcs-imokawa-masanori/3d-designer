@@ -172,7 +172,89 @@
             display: flex;
             gap: 8px;
             flex-wrap: wrap;
+            align-items: center;
         }
+        /* === COGNITO AUTH === */
+        .auth-section {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: 12px;
+            padding-left: 12px;
+            border-left: 1px solid var(--border);
+        }
+        .btn-login {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85em;
+            transition: all 0.2s;
+        }
+        .btn-login:hover { transform: scale(1.05); box-shadow: 0 2px 12px rgba(79,70,229,0.4); }
+        .user-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 4px 12px 4px 4px;
+            cursor: pointer;
+            position: relative;
+        }
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 0.9em;
+        }
+        .user-name {
+            color: var(--text);
+            font-size: 0.85em;
+            font-weight: 500;
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .user-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 4px;
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            z-index: 200;
+            min-width: 200px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+        }
+        .user-menu.show { display: block; }
+        .user-menu-item {
+            padding: 10px 16px;
+            color: var(--text);
+            cursor: pointer;
+            font-size: 0.85em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.15s;
+        }
+        .user-menu-item:hover { background: var(--bg3); }
+        .user-menu-item.danger { color: var(--danger); }
+        .user-menu-divider { height: 1px; background: var(--border); }
 
         /* === MODAL OVERLAY === */
         .modal-overlay {
@@ -1128,6 +1210,10 @@
                 <button class="btn" onclick="generateBuilding()" title="Generate Building">🏢 Building</button>
                 <button class="btn" onclick="showDecals()" title="Decals & Textures">🎭 Decals</button>
                 <button class="btn" onclick="generateInstructionBook()" title="Instruction Booklet">📕 Manual</button>
+                <!-- Auth Section -->
+                <div class="auth-section" id="auth-section">
+                    <button class="btn-login" id="login-btn" onclick="cognitoLogin()">🔐 Login</button>
+                </div>
             </div>
         </header>
 
@@ -5974,6 +6060,155 @@
             document.body.appendChild(banner);
         }
     });
+
+    // =============================================
+    // COGNITO AUTHENTICATION
+    // =============================================
+    const COGNITO_CONFIG = {
+        userPoolId: 'ap-northeast-1_qjgrtbzGz',
+        clientId: '38rvjgcq9kukds2ft1s8c6mroc',
+        domain: 'ea-guide-viewer-20251224125510.auth.ap-northeast-1.amazoncognito.com',
+        region: 'ap-northeast-1',
+        scopes: ['openid', 'email', 'profile'],
+        redirectUri: window.location.origin + '/',
+    };
+
+    // Check if we're returning from Cognito login (authorization code in URL)
+    function handleCognitoCallback() {
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get('code');
+        if (code) {
+            // Exchange authorization code for tokens
+            exchangeCodeForTokens(code);
+            // Clean up URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    }
+
+    async function exchangeCodeForTokens(code) {
+        try {
+            const tokenUrl = `https://${COGNITO_CONFIG.domain}/oauth2/token`;
+            const body = new URLSearchParams({
+                grant_type: 'authorization_code',
+                client_id: COGNITO_CONFIG.clientId,
+                code: code,
+                redirect_uri: COGNITO_CONFIG.redirectUri,
+            });
+            const resp = await fetch(tokenUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: body.toString(),
+            });
+            if (!resp.ok) {
+                console.error('Token exchange failed:', resp.status);
+                return;
+            }
+            const tokens = await resp.json();
+            localStorage.setItem('cognito_id_token', tokens.id_token);
+            localStorage.setItem('cognito_access_token', tokens.access_token);
+            if (tokens.refresh_token) localStorage.setItem('cognito_refresh_token', tokens.refresh_token);
+            localStorage.setItem('cognito_expires_at', String(Date.now() + tokens.expires_in * 1000));
+            updateAuthUI();
+        } catch (err) {
+            console.error('Token exchange error:', err);
+        }
+    }
+
+    function cognitoLogin() {
+        const params = new URLSearchParams({
+            client_id: COGNITO_CONFIG.clientId,
+            response_type: 'code',
+            scope: COGNITO_CONFIG.scopes.join(' '),
+            redirect_uri: COGNITO_CONFIG.redirectUri,
+        });
+        window.location.href = `https://${COGNITO_CONFIG.domain}/login?${params.toString()}`;
+    }
+
+    function cognitoLogout() {
+        localStorage.removeItem('cognito_id_token');
+        localStorage.removeItem('cognito_access_token');
+        localStorage.removeItem('cognito_refresh_token');
+        localStorage.removeItem('cognito_expires_at');
+        const params = new URLSearchParams({
+            client_id: COGNITO_CONFIG.clientId,
+            logout_uri: COGNITO_CONFIG.redirectUri,
+        });
+        window.location.href = `https://${COGNITO_CONFIG.domain}/logout?${params.toString()}`;
+    }
+
+    function getCognitoUser() {
+        const idToken = localStorage.getItem('cognito_id_token');
+        const expiresAt = parseInt(localStorage.getItem('cognito_expires_at') || '0');
+        if (!idToken || Date.now() > expiresAt) return null;
+        try {
+            // Decode JWT payload (base64)
+            const payload = JSON.parse(atob(idToken.split('.')[1]));
+            return {
+                email: payload.email || '',
+                name: payload.name || payload['cognito:username'] || payload.email || 'User',
+                sub: payload.sub,
+                groups: payload['cognito:groups'] || [],
+            };
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function updateAuthUI() {
+        const section = document.getElementById('auth-section');
+        const user = getCognitoUser();
+        if (user) {
+            const initials = (user.name || user.email || 'U').substring(0, 2).toUpperCase();
+            const displayName = user.name || user.email;
+            section.innerHTML = `
+                <div class="user-badge" onclick="toggleUserMenu(event)">
+                    <div class="user-avatar">${initials}</div>
+                    <span class="user-name">${displayName}</span>
+                    <div class="user-menu" id="user-menu">
+                        <div class="user-menu-item" style="opacity:0.6;pointer-events:none;">
+                            📧 ${user.email}
+                        </div>
+                        <div class="user-menu-divider"></div>
+                        <div class="user-menu-item" onclick="showMyDesigns()">📁 My Designs</div>
+                        <div class="user-menu-item" onclick="showMyProfile()">👤 Profile</div>
+                        <div class="user-menu-divider"></div>
+                        <div class="user-menu-item danger" onclick="cognitoLogout()">🚪 Logout</div>
+                    </div>
+                </div>
+            `;
+        } else {
+            section.innerHTML = `<button class="btn-login" onclick="cognitoLogin()">🔐 Login</button>`;
+        }
+    }
+
+    function toggleUserMenu(e) {
+        e.stopPropagation();
+        const menu = document.getElementById('user-menu');
+        if (menu) menu.classList.toggle('show');
+    }
+
+    // Close user menu when clicking elsewhere
+    document.addEventListener('click', () => {
+        const menu = document.getElementById('user-menu');
+        if (menu) menu.classList.remove('show');
+    });
+
+    function showMyDesigns() {
+        const user = getCognitoUser();
+        if (!user) return cognitoLogin();
+        showToast('My Designs — coming soon! Your saved designs will appear here.', 'info');
+    }
+
+    function showMyProfile() {
+        const user = getCognitoUser();
+        if (!user) return cognitoLogin();
+        showToast(`Profile: ${user.name} (${user.email})`, 'info');
+    }
+
+    // Initialize auth on page load
+    handleCognitoCallback();
+    updateAuthUI();
+
     </script>
 </body>
 </html>
